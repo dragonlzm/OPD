@@ -1,6 +1,6 @@
 # verl OPD Example
 
-This directory provides an example script for running On-Policy Distillation (OPD) with [verl](https://github.com/volcengine/verl). Please install verl v0.8.0 or later before launching the script.
+This directory provides an example script for running On-Policy Distillation (OPD) with [verl](https://github.com/volcengine/verl). Please install **verl v0.8.0** or later before launching the script.
 
 ## Configuration Notes
 
