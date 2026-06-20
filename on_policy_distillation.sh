@@ -14,6 +14,14 @@
 
 set -x
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERL_REPO_DIR="${SCRIPT_DIR}/verl"
+if [ ! -d "${VERL_REPO_DIR}/verl/trainer" ]; then
+    echo "Could not find local verl package at ${VERL_REPO_DIR}/verl" >&2
+    exit 1
+fi
+export PYTHONPATH="${VERL_REPO_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
+
 # Configure logging when running outside SBATCH.
 if [ -z "$SLURM_JOB_ID" ]; then
     # Create the log directory and file for local runs.
@@ -106,7 +114,7 @@ TEST_DATASET=${TEST_FILE:-["$TEST_DATA_DIR/AIME25/test.parquet", "$TEST_DATA_DIR
 # export ACTOR_MODEL_PATH=/workspace/model/Qwen3-1.7B-SFT-DAPO-4B-RL
 # export ACTOR_MODEL_PATH=/workspace/model/Qwen3-1.7B-SFT-DAPO-4B
 # export ACTOR_MODEL_PATH=model/Qwen2.5-Math-1.5B
-export ACTOR_MODEL_PATH=model/DeepSeek-R1-Distill-Qwen-1.5B
+export ACTOR_MODEL_PATH=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
 # export ACTOR_MODEL_PATH=model/JustRL-DeepSeek-1.5B-step_0400
 # export ACTOR_MODEL_PATH=model/JustRL-DeepSeek-1.5B
 # export ACTOR_MODEL_PATH=model/Qwen3-1.7B-SFT
