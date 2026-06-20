@@ -40,6 +40,13 @@ ray stop --force
 export RAY_memory_usage_threshold=0.99
 export CUDA_LAUNCH_BLOCKING=1
 # export CUDA_VISIBLE_DEVICES=1,2,3,4
+if [ -z "${SLURM_JOB_ID:-}" ] && [ "${OPD_RESPECT_CUDA_VISIBLE_DEVICES:-0}" != "1" ]; then
+    PHYSICAL_GPU_COUNT="$(nvidia-smi -L 2>/dev/null | wc -l)"
+    if [[ "$PHYSICAL_GPU_COUNT" =~ ^[0-9]+$ ]] && [ "$PHYSICAL_GPU_COUNT" -gt 0 ]; then
+        export CUDA_VISIBLE_DEVICES="$(seq -s, 0 $((PHYSICAL_GPU_COUNT - 1)))"
+        echo "Using all visible physical GPUs for local run: CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+    fi
+fi
 export PYTHONUNBUFFERED=1
 export PROJECT_NAME='OnPolicyDistillation' # TODO
 export TORCH_NCCL_BLOCKING_WAIT=1
@@ -222,7 +229,7 @@ PPO_MAX_TOKEN_LEN_PER_GPU=$(( ((1024 + MAX_RESP_LENGTH) > 32768) ? (1024 + MAX_R
 echo "PPO_MAX_TOKEN_LEN_PER_GPU: $PPO_MAX_TOKEN_LEN_PER_GPU"
 
 
-ray start --head
+ray start --head --num-gpus="$N_GPUS_PER_NODE"
 RAY_AVAILABLE_GPUS="$(
 python3 - 2>/dev/null <<'PY' | tail -n 1
 import ray
