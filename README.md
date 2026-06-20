@@ -81,6 +81,11 @@ Use the following command to start on-policy distillation:
 
 ```bash
 bash on_policy_distillation.sh
+
+cd /mnt/localssd/project2/zm_temp/OPD
+git pull origin main
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 OPD_RESPECT_CUDA_VISIBLE_DEVICES=1 bash on_policy_distillation.sh
+
 ```
 
 <details>
