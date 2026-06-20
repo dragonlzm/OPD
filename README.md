@@ -51,6 +51,17 @@ conda activate verl
 cd verl/
 USE_MEGATRON=0 bash scripts/install_vllm_sglang_mcore.sh
 pip install math-verify
+
+
+conda activate verl
+
+python -m pip install --no-cache-dir --force-reinstall "numpy==2.2.6"
+
+python - <<'PY'
+import numpy, numba
+print("numpy:", numpy.__version__)
+print("numba:", numba.__version__)
+PY
 ```
 
 And we use [LlamaFactory](https://github.com/hiyouga/LLaMA-Factory) (v0.9.5) for SFT training. To prepare the environment for SFT:
