@@ -150,6 +150,52 @@ export TOKENIZERS_PARALLELISM=true
 export SWANLAB_LOG_DIR=${PROJECT_PATH}/swanlab_log
 export HYDRA_FULL_ERROR=1
 
+detect_num_gpus() {
+    if [ -n "${N_GPUS_PER_NODE:-}" ]; then
+        echo "$N_GPUS_PER_NODE"
+        return
+    fi
+    if [ -n "${TRAINER_N_GPUS_PER_NODE:-}" ]; then
+        echo "$TRAINER_N_GPUS_PER_NODE"
+        return
+    fi
+    if [[ "${SLURM_GPUS_ON_NODE:-}" =~ ^[0-9]+$ ]]; then
+        echo "$SLURM_GPUS_ON_NODE"
+        return
+    fi
+    if [ -n "${CUDA_VISIBLE_DEVICES:-}" ] && [ "$CUDA_VISIBLE_DEVICES" != "NoDevFiles" ]; then
+        python3 - "$CUDA_VISIBLE_DEVICES" <<'PY'
+import sys
+
+devices = [d.strip() for d in sys.argv[1].split(",") if d.strip()]
+print(len(devices))
+PY
+        return
+    fi
+    TORCH_GPU_COUNT="$(python3 - <<'PY' 2>/dev/null
+import torch
+
+print(torch.cuda.device_count())
+PY
+)"
+    if [[ "$TORCH_GPU_COUNT" =~ ^[0-9]+$ ]]; then
+        echo "$TORCH_GPU_COUNT"
+        return
+    fi
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        nvidia-smi -L | wc -l
+        return
+    fi
+    echo 0
+}
+
+export N_GPUS_PER_NODE="$(detect_num_gpus)"
+if ! [[ "$N_GPUS_PER_NODE" =~ ^[0-9]+$ ]] || [ "$N_GPUS_PER_NODE" -lt 1 ]; then
+    echo "No GPUs detected. Set N_GPUS_PER_NODE explicitly if Ray should use custom GPU resources." >&2
+    exit 1
+fi
+echo "N_GPUS_PER_NODE: $N_GPUS_PER_NODE"
+
 
 export EXPERIMENT_NAME=${ADV_ESTIMATOR}_${TRAIN_DATASET_NAME}_${ACTOR_MODEL_NAME}_${REWARD_MODEL_NAME}_${MAX_RESP_LENGTH}-T_${TEMPERATURE}-Tch_${TEACHER_TEMPERATURE}-n_${N_RESPONSES}-mbs_${MINI_BATCH_SIZE}-topk_${LOG_PROB_TOP_K}-topk_strategy_${TOP_K_STRATEGY}-rw_${REWARD_WEIGHT_MODE}-$(date +%Y-%m-%d_%H-%M-%S)
 
@@ -173,6 +219,23 @@ echo "PPO_MAX_TOKEN_LEN_PER_GPU: $PPO_MAX_TOKEN_LEN_PER_GPU"
 
 
 ray start --head
+RAY_AVAILABLE_GPUS="$(
+python3 - 2>/dev/null <<'PY' | tail -n 1
+import ray
+
+ray.init(address="auto", ignore_reinit_error=True, logging_level="ERROR")
+print(int(ray.cluster_resources().get("GPU", 0)))
+ray.shutdown()
+PY
+)"
+if ! [[ "$RAY_AVAILABLE_GPUS" =~ ^[0-9]+$ ]] || [ "$RAY_AVAILABLE_GPUS" -lt 1 ]; then
+    echo "Ray reports no available GPUs. Check CUDA_VISIBLE_DEVICES and Ray startup logs." >&2
+    exit 1
+fi
+if [ "$RAY_AVAILABLE_GPUS" -lt "$N_GPUS_PER_NODE" ]; then
+    echo "Ray reports $RAY_AVAILABLE_GPUS GPUs; using trainer.n_gpus_per_node=$RAY_AVAILABLE_GPUS instead of detected $N_GPUS_PER_NODE."
+    export N_GPUS_PER_NODE="$RAY_AVAILABLE_GPUS"
+fi
 sleep 5
 
 
@@ -244,7 +307,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.project_name=$PROJECT_NAME \
     trainer.experiment_name=$EXPERIMENT_NAME \
     trainer.validation_data_dir=validation_log/$EXPERIMENT_NAME \
-    trainer.n_gpus_per_node=8 \
+    trainer.n_gpus_per_node=$N_GPUS_PER_NODE \
     trainer.nnodes=1 \
     trainer.save_freq=20 \
     trainer.test_freq=-1 \
