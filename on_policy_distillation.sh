@@ -146,6 +146,10 @@ export NCCL_DEBUG=WARN
 
 # export VLLM_ATTENTION_BACKEND=XFORMERS
 # export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+if [[ "${PYTORCH_CUDA_ALLOC_CONF:-}" == *"expandable_segments:True"* ]]; then
+    echo "Unsetting PYTORCH_CUDA_ALLOC_CONF because vLLM CuMemAllocator is incompatible with expandable_segments:True."
+    unset PYTORCH_CUDA_ALLOC_CONF
+fi
 export TOKENIZERS_PARALLELISM=true
 export SWANLAB_LOG_DIR=${PROJECT_PATH}/swanlab_log
 export HYDRA_FULL_ERROR=1
