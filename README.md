@@ -62,6 +62,9 @@ import numpy, numba
 print("numpy:", numpy.__version__)
 print("numba:", numba.__version__)
 PY
+
+pip install matplotlib
+# pip install swanlab
 ```
 
 And we use [LlamaFactory](https://github.com/hiyouga/LLaMA-Factory) (v0.9.5) for SFT training. To prepare the environment for SFT:
